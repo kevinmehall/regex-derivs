@@ -41,8 +41,9 @@ concatenation = a:kleene b:concatenation
 	{return ast.concatenation(a, b)}
 	/ kleene
 
-kleene = a:atom "*"
-	{return ast.repeat(a)}
+kleene
+	= a:atom "*" {return ast.repeat(a)}
+	/ a:atom "+" {return ast.concatenation(a, ast.repeat(a))}
 	/ atom
 
 atom = anyChar / charLiteral / charClass / "(" s:start ")" {return s}
