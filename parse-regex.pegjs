@@ -1,6 +1,6 @@
 {
 	Bitset = require('./bitset')
-	ast = require('./ast')
+	ast = require('./regex')
 }
 
 start = disjunction

@@ -3,7 +3,7 @@ require('source-map-support').install()
 util = require 'util'
 {parse} = require './parse-regex'
 Bitset = require './bitset'
-{exec} = require './regex'
+{exec, buildFA, showFA, dotFA} = require './regex'
 
 p = parse("[a-zA-Z123]")
 
@@ -23,4 +23,9 @@ console.log 'exec', exec(parse("a*aaaa"), "aaaaaaaaa")
 console.log 'exec', exec(parse("a*aaa"), "aa")
 
 console.log 'exec', exec(parse("(ab|bc)*c"), "ababbcabc")
+
+console.log 'exec', exec(parse("(aaa|aaa)*c"), "aaaaaaaaac")
+
+console.log dotFA buildFA(parse("a*aa[ab]aaa[ab]aaaa"))
+
 

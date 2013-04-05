@@ -2,18 +2,25 @@
 	allDerivatives: -> []
 	isNullable: false
 	toString: -> "<#{@constructor.name}>"
+	equal: (other) ->
+		@constructor.name is other.constructor.name and @hash is other.hash
 
 epsilon = new Expr()
 epsilon.isNullable = true
+epsilon.hash = 1
 epsilon.toString = -> "ε"
 
 chr = String.fromCharCode
 wrap  = (s, delim) -> if s.length == 1 then s else "#{delim[0]}#{s}#{delim[1]}"
 
+showBitset = (s) -> wrap (chr i for i in [0..255] when s.test(i)).join(''), '[]'
+
 class Literal extends Expr
 	constructor: (@charset) ->
+		@hash = @charset.data.reduce((x,y)->((x+y)*99990001)|0)
+	equal: (other) -> super(other) and @charset.equal(other.charset)
 	allDerivatives: -> [{match:@charset, next:epsilon}]
-	toString: -> wrap (chr i for i in [0..255] when @charset.test(i)).join(''), '[]'
+	toString: -> showBitset @charset
 
 @literal = (charset) -> new Literal(charset)
 
@@ -36,6 +43,10 @@ disjunctionMerge = (as, bs) ->
 class Concatenation extends Expr
 	constructor: (@first, @second) ->
 		@isNullable = @first.isNullable and @second.isNullable
+		@hash = (@first.hash*263167) | (@second.hash*16785407)
+
+	equal: (other) -> super(other) and
+		@first.equal(other.first) and @second.equal(other.second)
 
 	allDerivatives: ->
 		f = for {match, next} in @first.allDerivatives()
@@ -44,7 +55,7 @@ class Concatenation extends Expr
 		if not @first.isNullable then f
 		else disjunctionMerge(f, @second.allDerivatives())
 
-	toString: -> "#{@first.toString()}#{@second.toString()}"
+	toString: -> "#{wrap @first.toString(), '()'}#{@second.toString()}"
 
 @concatenation = concatenation = (first, second) ->
 	console.assert first instanceof Expr
@@ -56,6 +67,16 @@ class Concatenation extends Expr
 class Disjunction extends Expr
 	constructor: (@choices) ->
 		@isNullable = @choices.some((x)->x.isNullable)
+		@hash = @choices.reduce ((x,y)->((x+y.hash)|0)), 28657
+
+	equal: (other) ->
+		return false unless super(other)
+		return false unless @choices.length == other.choices.length
+		count = 0
+		for i in @choices
+			for j in other.choices
+				count++ if i.equal(j)
+		@choices.length == count
 
 	allDerivatives: ->
 		out = []
@@ -67,10 +88,15 @@ class Disjunction extends Expr
 
 @disjunction = disjunction = (choices) ->
 	console.assert choices instanceof Array
-	new Disjunction(choices)
+	if choices.length == 1
+		choices[0]
+	else
+		new Disjunction(choices)
 
 class Repeat extends Expr
 	constructor: (@a) ->
+		@hash = (2097593 * @a.hash)|0
+	equal: (other) -> super(other) and @a.equal(other.a)
 	isNullable: true
 	allDerivatives: ->
 		for {match, next} in @a.allDerivatives()
@@ -81,7 +107,7 @@ class Repeat extends Expr
 
 @exec = (expr, str) ->
 	while str
-		console.log expr.toString(), str
+		console.log expr.hash, expr.toString(), str
 		char = str.charCodeAt(0)
 		str = str.slice(1)
 
@@ -92,8 +118,53 @@ class Repeat extends Expr
 				break
 
 		if nextExpr
+			console.log 'fixed point' if expr.equal(nextExpr)
 			expr = nextExpr
 		else
 			return false
 
 	return expr.isNullable
+
+HashTable = require './hashtable'
+
+@buildFA = (expr) ->
+	startState = {expr, id:0}
+	states = [startState]
+	queue = [startState]
+	lookup = new HashTable()
+	lookup.insert(expr, startState)
+
+	while queue.length
+		s = queue.pop()
+		s.derivs = for {match, next} in s.expr.allDerivatives()
+			state = lookup.get(next)
+
+			if not state
+				state = lookup.insert next, {expr:next, id:states.length}
+				states.push state
+				queue.push state
+
+			{match, state}
+
+	return states
+
+@showFA = (fa) ->
+	for {id, expr, derivs} in fa
+		console.log "#{['-','+'][+expr.isNullable]}State #{id}: #{expr}"
+		for d in derivs
+			console.log("\t #{showBitset d.match} -> #{d.state.id}")
+
+@dotFA = (fa) ->
+	lines = []
+
+	lines.push "digraph g { "
+
+	for {id, expr, derivs} in fa
+		if expr.isNullable
+			lines.push "\ts#{id} [peripheries=2]"
+		for d in derivs
+			lines.push "\ts#{id} -> s#{d.state.id} [label=\"#{showBitset d.match}\"]"
+
+	lines.push "}"
+
+	return lines.join('\n')
