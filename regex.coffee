@@ -62,6 +62,8 @@ class Concatenation extends Expr
 	console.assert second instanceof Expr
 	if first is epsilon then second
 	else if second is epsilon then first
+	else if first instanceof Concatenation
+		concatenation(first.first, concatenation(first.second, second))
 	else new Concatenation(first, second)
 
 class Disjunction extends Expr
@@ -86,12 +88,28 @@ class Disjunction extends Expr
 
 	toString: -> @choices.join('|')
 
+
+inSet = (item, set) ->
+	for i in set
+		return true if item.equal(i)
+	false
+
 @disjunction = disjunction = (choices) ->
 	console.assert choices instanceof Array
-	if choices.length == 1
-		choices[0]
+
+	cleaned = []
+	add = (e) ->
+		if e instanceof Disjunction
+			add(i) for i in e.choices
+		else
+			cleaned.push e unless inSet e, cleaned
+
+	add(i) for i in choices
+
+	if cleaned.length == 1
+		cleaned[0]
 	else
-		new Disjunction(choices)
+		new Disjunction(cleaned)
 
 class Repeat extends Expr
 	constructor: (@a) ->
@@ -118,7 +136,6 @@ class Repeat extends Expr
 				break
 
 		if nextExpr
-			console.log 'fixed point' if expr.equal(nextExpr)
 			expr = nextExpr
 		else
 			return false
@@ -136,6 +153,7 @@ HashTable = require './hashtable'
 
 	while queue.length
 		s = queue.pop()
+
 		s.derivs = for {match, next} in s.expr.allDerivatives()
 			state = lookup.get(next)
 
@@ -153,6 +171,7 @@ HashTable = require './hashtable'
 		console.log "#{['-','+'][+expr.isNullable]}State #{id}: #{expr}"
 		for d in derivs
 			console.log("\t #{showBitset d.match} -> #{d.state.id}")
+	null
 
 @dotFA = (fa) ->
 	lines = []
