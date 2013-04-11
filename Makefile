@@ -21,7 +21,7 @@ $(BUILD)/%.js: %.js
 
 .PHONY: test
 test: $(JS_OUT)
-	mocha build/test #--require build/test/_support.js
+	mocha build/test --require build/test/_support.js
 
 .PHONY: clean
 clean:

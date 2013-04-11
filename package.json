@@ -1,0 +1,28 @@
+{
+  "name": "regex-derivs",
+  "version": "0.0.0",
+  "directories": {
+    "doc": "doc",
+    "test": "test"
+  },
+  "dependencies": {
+    "pegjs": "git://github.com/dmajda/pegjs.git#e8a68e91e0fa11faaadb2a1fadd526a013ce4722",
+    "source-map-support": "~0.1.2"
+  },
+  "devDependencies": {
+    "mocha": "~1.8.1",
+    "coffee-script": "~1.6.1"
+  },
+  "scripts": {
+    "install": "make build",
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "author": "Kevin Mehall",
+  "license": "BSD",
+  "private": true,
+  "description": "Experiments with regular expression derivatives"
+}
