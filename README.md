@@ -2,7 +2,9 @@ Experiments with Regular Expression Derivatives.
 
 See [regex.coffee](regex.coffee) for the interesting parts.
 
-Run `node build/dotFA '(a+b+c+)+' | dot -Tsvg | display` to display the DFA graph of a regex.
+Run `make && node build/dotFA '(a+b+c+)+' | dot -Tsvg | display` to display the DFA graph of a regex.
+
+Run `make && node build/llvm 'a*b*'` for LLVM IR; pipe it to `opt -O3 | llc` for ASM.
 
 ### References
 

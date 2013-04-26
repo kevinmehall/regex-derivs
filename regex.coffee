@@ -240,3 +240,60 @@ HashTable = require './hashtable'
 	lines.push "}"
 
 	return lines.join('\n')
+
+
+llvm = require 'llvm'
+# Compile a DFA to a LLVM function.
+@llvmFA = (fa, module, funcname) ->
+	char = module.context.int8Ty
+	charptr = char.getPointerTo()
+	bool = module.context.int1Ty
+	int = module.context.int32Ty
+
+	ft = module.context.getFunctionType(bool, [charptr])
+	fn = module.getOrInsertFunction(funcname, ft)
+	input_string = fn.arguments[0]
+	b = new llvm.IRBuilder(module.context)
+
+	# Entry block -- init pos counter
+	entry = b.setInsertPoint fn.addBasicBlock('entry')
+	pos_var = b.createAlloca(int, 0, 'pos_var')
+	b.createStore(int.const(0), pos_var)
+
+	# Create some blocks to return true/false to be used as switch targets
+	return_true = b.setInsertPoint fn.addBasicBlock('return_true')
+	b.createRet bool.const(1)
+	return_false = b.setInsertPoint fn.addBasicBlock('return_false')
+	b.createRet bool.const(0)
+
+	# Create a basic block for each state
+	for state in fa
+		state.bb = fn.addBasicBlock("state#{state.id}")
+
+	# Jump from the entry to the start state
+	b.setInsertPoint(entry)
+	b.createBr fa[0].bb
+
+	# Fill in the state basic blocks.
+	for {expr, derivs, bb} in fa
+		b.setInsertPoint(bb)
+
+		# Increment the position and load the character
+		pos = b.createLoad(pos_var, "pos")
+		c = b.createLoad(b.createGEP(input_string, [pos], 'c_ptr'), 'c')
+		b.createStore(b.createNUWAdd(pos, int.const(1), 'npos'), pos_var)
+
+		sw = b.createSwitch(c, return_false)
+
+		if expr.isNullable
+			# If the state accepts the empty string, the string terminator
+			# will make the function return true. (Otherwise it's in the
+			# default case that returns false.)
+			sw.addCase(char.const(0), return_true)
+
+		# Add cases for the exit transitions
+		for {match, state} in derivs
+			for i in [1..255] when match.test(i)
+				sw.addCase(char.const(i), state.bb)
+
+	return fn
