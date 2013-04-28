@@ -47,4 +47,3 @@ kleene
 	/ atom
 
 atom = anyChar / charLiteral / charClass / "(" s:start ")" {return s}
-
