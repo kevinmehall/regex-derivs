@@ -12,8 +12,8 @@
 # This also has the effect of removing the need for the "null set" expression.
 # Its equivalent is simply an empty list of possible derivatives.
 
-
 Bitset = require './bitset'
+{parse} = require './parse-regex'
 
 # Helpers for pretty-printing Exprs
 chr = String.fromCharCode
@@ -193,7 +193,7 @@ HashTable = require './hashtable'
 
 # Build a DFA from an expression by mapping Exprs to states and their
 # derivatives to edges.
-@buildFA = (expr) ->
+@buildFA = buildFA = (expr) ->
 	startState = {expr, id:0}
 	states = [startState]
 	queue = [startState]
@@ -244,7 +244,7 @@ HashTable = require './hashtable'
 
 llvm = require 'llvm'
 # Compile a DFA to a LLVM function.
-@llvmFA = (fa, module, funcname) ->
+@llvmFA = llvmFA = (fa, module, funcname) ->
 	char = module.context.int8Ty
 	charptr = char.getPointerTo()
 	bool = module.context.int1Ty
@@ -297,3 +297,29 @@ llvm = require 'llvm'
 				sw.addCase(char.const(i), state.bb)
 
 	return fn
+
+# Compile a regex all the way to an JS-callable LLVM function
+@compileLLVM = (re) ->
+	expr = parse(re)
+	fa = buildFA(expr)
+
+	mod = new llvm.Module("regex", llvm.globalContext)
+	fn = llvmFA(fa, mod, 'regex')
+
+	engine = new llvm.ExecutionEngine(mod)
+	pm = new llvm.FunctionPassManager(mod)
+
+	# TODO: better set of optimization passes
+	pm.addTargetDataPass('')
+	  .addBasicAliasAnalysisPass()
+	  .doInitialization()
+	pm.run(fn)
+	
+	ffiFn = engine.getFFIFunction(fn)
+	matchFn = (s) -> ffiFn(ref.allocCString(s))
+
+	# attach the FA and LLVM source so we can dump it
+	matchFn.fa = fa
+	matchFn.llvmFn = fn
+	
+	return matchFn

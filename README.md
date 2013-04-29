@@ -6,6 +6,8 @@ Run `make && node build/dotFA '(a+b+c+)+' | dot -Tsvg | display` to display the 
 
 Run `make && node build/llvm 'a*b*'` for LLVM IR; pipe it to `opt -O3 | llc` for ASM.
 
+Run `make && node build/llvm '.*foo.*' 'abcfooxyz' to test a string with the llvm-compiled regex.
+
 ### References
 
   * [Regular-expression derivatives reexamined](http://www.ccs.neu.edu/home/turon/re-deriv.pdf)

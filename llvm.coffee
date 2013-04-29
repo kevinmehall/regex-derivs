@@ -1,12 +1,10 @@
 require('source-map-support').install()
 
-llvm = require 'llvm'
+{compileLLVM} = require './regex'
 
-util = require 'util'
-{parse} = require './parse-regex'
-{exec, buildFA, showFA, llvmFA} = require './regex'
+matchFn = compileLLVM(process.argv[2])
 
-mod = new llvm.Module("regex", llvm.globalContext)
-fa = buildFA parse process.argv[2]
-fn = llvmFA(fa, mod, 'regex')
-console.log fn.dump()
+if process.argv[3]
+	console.log matchFn(process.argv[3])
+else
+	console.log matchFn.llvmFn.dump()
